@@ -17,8 +17,8 @@ from decouple import Config, RepositoryEnv
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config = Config(RepositoryEnv(os.path.join(BASE_DIR, '.env')))
-
+from decouple import AutoConfig
+config = AutoConfig()
 # ─────────────────────────────────────────────────────────────────
 # BASE CONFIGURATION
 # ─────────────────────────────────────────────────────────────────
