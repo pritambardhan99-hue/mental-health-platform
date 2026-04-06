@@ -104,7 +104,7 @@ export default function ChatPage() {
   const [loading, setLoading]       = useState(false);
   const [roomId, setRoomId]         = useState(null);
   const [emergency, setEmergency]   = useState(null);
-  const [histLoaded, setHistLoaded] = useState(false);
+  const [, setHistLoaded] = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 

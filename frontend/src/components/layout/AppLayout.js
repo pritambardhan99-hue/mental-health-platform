@@ -10,7 +10,7 @@ const NAV_ITEMS = [
 ];
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+ const { logout } = useAuth();
   const navigate = useNavigate();
   const [showId, setShowId] = useState(false);
 

@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip,
+   XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Area, AreaChart,
 } from 'recharts';
 import { moodAPI } from '../services/api';
@@ -26,7 +26,6 @@ const MOODS = [
   { key: 'overwhelmed', emoji: '😩', label: 'Overwhelmed', color: '#c084fc' },
 ];
 
-const MOOD_SCORES = { happy: 5, hopeful: 4, calm: 4, numb: 3, anxious: 2, angry: 2, sad: 1, overwhelmed: 1 };
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -60,8 +59,8 @@ export default function MoodPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
-
   const loadData = async () => {
     try {
       const [todayRes, statsRes] = await Promise.all([

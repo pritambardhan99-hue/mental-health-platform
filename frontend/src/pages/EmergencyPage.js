@@ -18,7 +18,7 @@ const COPING_TIPS = [
 ];
 
 export default function EmergencyPage() {
-  const [resources, setResources] = useState(STATIC_RESOURCES);
+  const [, setResources] = useState([]);
   const [checkText, setCheckText] = useState('');
   const [checkResult, setCheckResult] = useState(null);
   const [checking, setChecking] = useState(false);
