@@ -1,0 +1,42 @@
+# Environment files — NEVER commit these
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+staticfiles/
+media/
+db.sqlite3
+
+# React / Node
+node_modules/
+build/
+.npm
+.cache
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# MySQL data (Docker volume)
+mysql/data/

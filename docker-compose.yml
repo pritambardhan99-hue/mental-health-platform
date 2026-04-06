@@ -1,0 +1,117 @@
+# ─────────────────────────────────────────────────────────────────
+# Docker Compose Configuration
+# Defines and connects all services:
+#   db      → MySQL database
+#   redis   → Message broker for WebSockets
+#   backend → Django + Daphne ASGI server
+#   frontend → React (served by Nginx in prod)
+#   nginx   → Reverse proxy routing all traffic
+# ─────────────────────────────────────────────────────────────────
+
+version: '3.9'
+
+services:
+
+  # ── MySQL Database ──────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: mental_health_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: mental_health_db
+      MYSQL_USER: mental_health_user
+      MYSQL_PASSWORD: your-strong-db-password
+      MYSQL_ROOT_PASSWORD: root-password
+    volumes:
+      - mysql_data:/var/lib/mysql          # Persist data across restarts
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql  # Init script
+    ports:
+      - "3306:3306"   # Expose for local DB tools (TablePlus, DBeaver, etc.)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # ── Redis (WebSocket Channel Layer) ────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: mental_health_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Django Backend ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mental_health_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env              # Load environment variables
+    environment:
+      - DB_HOST=db                  # Override to use Docker service name
+      - REDIS_HOST=redis
+    volumes:
+      - ./backend:/app              # Mount code for hot-reload in dev
+      - static_files:/app/staticfiles
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy  # Wait for MySQL to be ready
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 5 &&
+        python manage.py migrate --noinput &&
+        echo 'Migrations done.' &&
+        daphne -b 0.0.0.0 -p 8000 mental_health_project.asgi:application
+      "
+
+  # ── React Frontend ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mental_health_frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules           # Prevent overwriting node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000
+      - CHOKIDAR_USEPOLLING=true    # File watching in Docker
+
+  # ── Nginx Reverse Proxy ─────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: mental_health_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_files:/static:ro
+    depends_on:
+      - backend
+      - frontend
+
+
+# ── Named Volumes ───────────────────────────────────────────────
+volumes:
+  mysql_data:     # MySQL data persistence
+  redis_data:     # Redis data persistence
+  static_files:   # Django static files shared with Nginx
