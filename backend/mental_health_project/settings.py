@@ -181,9 +181,7 @@ SIMPLE_JWT = {
 # ─────────────────────────────────────────────────────────────────
 # This allows our React frontend (running on port 3000) to call our Django APIs (port 8000)
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",    # React development server
-    "http://localhost:80",      # Production via Nginx
-    "http://127.0.0.1:3000",
+    "https://mental-health-platform-puce.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
