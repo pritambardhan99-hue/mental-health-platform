@@ -1,106 +1,72 @@
 /**
- * useWebSocket Hook
- * =================
- * Custom React hook that manages a WebSocket connection.
- * 
- * USAGE:
- *   const { messages, sendMessage, isConnected } = useWebSocket(roomId);
- * 
- * FEATURES:
- * - Auto-connects on mount
- * - Auto-reconnects on disconnect (with exponential backoff)
- * - Handles emergency alerts from server
- * - Returns parsed message objects
+ * useWebSocket Hook (HTTP version)
+ * =================================
+ * Replaced WebSocket with HTTP API calls for Render free plan compatibility.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const WS_URL = process.env.REACT_APP_WS_URL || 'wss://mental-health-platform-a6v1.onrender.com';
-const MAX_RETRIES = 5;
+import { chatbotAPI } from '../services/api';
 
 export function useWebSocket(roomId) {
   const [messages, setMessages]       = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [emergency, setEmergency]     = useState(null);
-  const wsRef      = useRef(null);
-  const retriesRef = useRef(0);
-  const timerRef   = useRef(null);
+  const pollingRef = useRef(null);
 
-  const connect = useCallback(() => {
+  useEffect(() => {
     if (!roomId) return;
+    setIsConnected(true);
 
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
-
-    // Build WebSocket URL with JWT token as query param
-    const url = `${WS_URL}/ws/chat/${roomId}/?token=${token}`;
-    const ws  = new WebSocket(url);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setIsConnected(true);
-      retriesRef.current = 0;  // Reset retry counter on success
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === 'emergency') {
-          // Emergency alert — don't add to messages, show banner
-          setEmergency(data);
-          return;
-        }
-
-        if (data.type === 'system') {
-          setMessages(prev => [...prev, { ...data, id: Date.now() }]);
-          return;
-        }
-
-        if (data.type === 'message') {
-          setMessages(prev => [...prev, { ...data, id: data.message_id }]);
-        }
-      } catch (e) {
-        console.error('WebSocket message parse error:', e);
+    // Load history once on connect
+    chatbotAPI.getHistory(roomId).then(res => {
+      if (res?.data?.messages) {
+        setMessages(res.data.messages.map(m => ({
+          type: 'message',
+          message: m.content,
+          sender: m.role === 'user' ? 'user' : 'bot',
+          id: m.id,
+        })));
       }
-    };
+    }).catch(() => {});
 
-    ws.onclose = (event) => {
+    return () => {
+      clearInterval(pollingRef.current);
       setIsConnected(false);
-      wsRef.current = null;
-
-      // Auto-reconnect with exponential backoff (unless intentional close)
-      if (event.code !== 1000 && retriesRef.current < MAX_RETRIES) {
-        const delay = Math.min(1000 * Math.pow(2, retriesRef.current), 30000);
-        retriesRef.current += 1;
-        timerRef.current = setTimeout(connect, delay);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
     };
   }, [roomId]);
 
-  useEffect(() => {
-    connect();
+  const sendMessage = useCallback(async (text) => {
+    if (!roomId) return false;
 
-    // Cleanup on unmount or roomId change
-    return () => {
-      clearTimeout(timerRef.current);
-      if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmounted');
-      }
+    // Add user message immediately to UI
+    const userMsg = {
+      type: 'message',
+      message: text,
+      sender: 'user',
+      id: Date.now(),
     };
-  }, [connect]);
+    setMessages(prev => [...prev, userMsg]);
 
-  const sendMessage = useCallback((text) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ message: text }));
-      return true;
+    try {
+      const res = await chatbotAPI.sendMessage(text, roomId, []);
+      const botMsg = {
+        type: 'message',
+        message: res.data.response || res.data.message,
+        sender: 'bot',
+        id: Date.now() + 1,
+      };
+      setMessages(prev => [...prev, botMsg]);
+    } catch (e) {
+      setMessages(prev => [...prev, {
+        type: 'message',
+        message: 'Sorry, I could not respond right now. Please try again.',
+        sender: 'bot',
+        id: Date.now() + 1,
+      }]);
     }
-    return false;
-  }, []);
+
+    return true;
+  }, [roomId]);
 
   const dismissEmergency = useCallback(() => setEmergency(null), []);
 
