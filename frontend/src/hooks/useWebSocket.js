@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+const WS_URL = process.env.REACT_APP_WS_URL || 'wss://mental-health-platform-a6v1.onrender.com';
 const MAX_RETRIES = 5;
 
 export function useWebSocket(roomId) {
