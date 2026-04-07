@@ -184,7 +184,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://mental-health-platform-puce.vercel.app",
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOW_HEADERS = [
     'accept',
